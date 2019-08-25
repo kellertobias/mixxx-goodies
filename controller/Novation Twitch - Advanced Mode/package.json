@@ -1,0 +1,15 @@
+{
+  "name": "controller",
+  "version": "1.0.0",
+  "description": "",
+  "main": "novation.mixco.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mixco": "^2.0.3",
+    "underscore": "^1.9.1"
+  }
+}
