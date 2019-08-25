@@ -1,4 +1,4 @@
-Library Base Path: "~/Google Drive/Musik/Dancing"
+Library Base Path: "~/Google Drive/Musik/Mixxx Library"
 Target Path: "%added-year%/%mappedgenre%/%artist%/%artist% - %title%.%ext%"
 Degraded Limits:
   # These are the lowest possible values for tracks.
@@ -13,6 +13,10 @@ Filename Replacements:
   Feat: feat.
   '&': and
   "'": ''
+Duplicate Highlight Locations:
+  # highlight these substrings in locations with the given color:
+  from me: red
+  SalsaSampler: blue
 Genre To Folder:
   # The key is the target folder or path, the array values are the
   # genre prefixes that will be mapped to this path.
@@ -53,3 +57,14 @@ Genre To Folder:
   Latin Other:
     - Latin Jazz
   Other: true
+Playlists:
+  - name: "Unrated"
+    rules:
+      - key: rating
+        operator: <
+        value: 1
+  - name: "Low Quality"
+    rules:
+      - key: bitrate
+        operator: <
+        value: 192

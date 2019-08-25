@@ -255,6 +255,7 @@ if len(duplicates) > 0:
       (track, otherTracks) = duplicates[track_location]
       print(' - [%s] %s - %s' % (track["genre"], track["artist"], track["title"]))
    print("")
+   print(" > %s duplicates total" % len(duplicates))
    print("We cannot proceed when we have duplicates!")
 
    cont = query_yes_no("Do you want me help to resolve these duplicates?")
@@ -272,6 +273,7 @@ if len(duplicates) > 0:
       col_artist = ["Artist"]
       col_rating = ["Rating"]
       col_added = ["Added"]
+      col_duration = ["Duration"]
       col_year = ["Year"]
       col_bitrate = ["Bitrate"]
       col_genre = ["Genre"]
@@ -281,19 +283,26 @@ if len(duplicates) > 0:
       oldestIndex = False
       oldestDate = datetime.now()
       highestBitrate = 0
-      highestBitrateIndex = False
       highestRating = 0
       highestRatingIndex = False
+      shortest = 1000000
+      longest = 0 
       for track in allSimilarTracks:
          added = track.get('datetime-added', datetime.now())
+         duration = int(track.get('duration', 0))
          if added <= oldestDate:
             oldestDate = added
             oldestIndex = i
 
+         if duration > longest:
+            longest = int(duration)
+
+         if duration < shortest:
+            shortest = int(duration)
+
          bitrate = track.get('bitrate', '--- ??? ---')
-         if bitrate > highestBitrate or (highestBitrateIndex is None and bitrate >= highestBitrate):
+         if bitrate >= highestBitrate:
             highestBitrate = bitrate
-            highestBitrateIndex = i
 
          rating = track.get('rating', '--- ??? ---')
          if rating > highestRating or (highestRatingIndex is None and rating >= highestRating):
@@ -306,6 +315,7 @@ if len(duplicates) > 0:
          col_title.append(track.get('title', '--- ??? ---'))
          col_artist.append(track.get('artist', '--- ??? ---'))
          col_rating.append(rating)
+         col_duration.append(duration)
          col_added.append(track.get('added', '--- ??? ---'))
          col_year.append(track.get('year', '--- ??? ---'))
          col_genre.append(track.get('genre', '--- ??? ---'))
@@ -322,6 +332,7 @@ if len(duplicates) > 0:
          col_rating,
          col_added,
          col_year,
+         col_duration,
          col_genre,
          col_bitrate,
          col_location,
@@ -335,7 +346,6 @@ if len(duplicates) > 0:
 
       for (row, col) in [
          (5, oldestIndex),
-         (8, highestBitrateIndex)
       ]:
          table_instance.table_data[row][col] = colored(table_instance.table_data[row][col], "white", "on_green")
 
@@ -348,14 +358,27 @@ if len(duplicates) > 0:
          rating = colored('★' * (rating), 'yellow') +colored('★' * (5-rating), backcol)
          table_instance.table_data[4][i + 1] = rating
 
+         for (index, compare, color) in [
+            (9, highestBitrate, 'on_green'),
+            (7, longest, 'on_yellow'),
+         ]:
+            data = table_instance.table_data[index][i + 1]
+            if data == compare:
+               table_instance.table_data[index][i + 1] = colored(data, "white", color)
+
+
       i = 1
       table_width = 0
       columns, rows = shutil.get_terminal_size()
       max_width = int((columns - 40) / len(allSimilarTracks))
 
       for track in allSimilarTracks:
-         wrapped_string = '\n'.join(wrap(track.get('location', '--- ??? ---'), max_width))
-         table_instance.table_data[9][i] = wrapped_string
+         location = track.get('location', '--- ??? ---')
+         for match in config['Duplicate Highlight Locations']:
+            color = config['Duplicate Highlight Locations'][match]
+            location = location.replace(match, colored(match, 'white', "on_%s" % color))
+         wrapped_string = '\n'.join(wrap(location, max_width))
+         table_instance.table_data[10][i] = wrapped_string
          i += 1
 
       print("")
@@ -371,15 +394,29 @@ if len(duplicates) > 0:
          i = 1
          for track in allSimilarTracks:
             if i != keepID:
-               print("Hiding Number", i, "TrackID: ", track.get('id'), track.get('location'))
-               conn.execute("""
+               print("Hiding Number", i, "TrackID:", track.get('id'), track.get('location'))
+               cur = conn.cursor()
+               cur.execute("""
                   UPDATE library
                   SET
                      mixxx_deleted = 1
                   WHERE
-                     id = ? AND
-                     location = ?
-               """, (track.get('id'), track.get('location')))
+                     id = ?
+               """, (track.get('id'), ))
+               conn.commit()
+               print(cur.rowcount)
+            else:
+               print("Updating Number", i, "TrackID:", track.get('id'), highestRating)
+
+               cur = conn.cursor()
+               cur.execute("""
+                  UPDATE library
+                  SET
+                     mixxx_deleted = 0,
+                     rating = ?
+                  WHERE
+                     id = ?
+               """, (highestRating, track.get('id')))
                conn.commit()
             i += 1
 
@@ -400,27 +437,32 @@ if not cont:
    print("Ok, Goodbye")
    sys.exit(0)
 
-# for (trackId, trackLocationId, source, target) in moved_tracks:
-#    directory = os.path.dirname(target)
-#    filename = os.path.basename(target)
-#    if not os.path.exists(directory):
-#       print(" > Creating Directory %s" % directory)
-#       os.makedirs(directory)
+for (trackId, trackLocationId, source, target) in moved_tracks:
+   directory = os.path.dirname(target)
+   filename = os.path.basename(target)
+   if not os.path.exists(directory):
+      print(" > Creating Directory %s" % directory)
+      os.makedirs(directory)
 
-#    try:
-#       print((target, filename, directory, trackLocationId, source))
-#       shutil.move(source, target)
-#       conn.execute("""
-#          UPDATE track_locations
-#          SET
-#             location = ?,
-#             filename = ?,
-#             directory = ?
-#          WHERE
-#             id = ? AND
-#             location = ?
-#       """, (target, filename, directory, trackLocationId, source))
-#       conn.commit()
-#    except Exception as e:
-#       print(e)
-#       raise e
+   try:
+      print((target, filename, directory, trackLocationId, source))
+      shutil.move(source, target)
+      cur = conn.cursor()
+      cur.execute("""
+         UPDATE track_locations
+         SET
+            location = ?,
+            filename = ?,
+            directory = ?
+         WHERE
+            id = ? AND
+            location = ?
+      """, (target, filename, directory, trackLocationId, source))
+      conn.commit()
+   except FileNotFoundError as e:
+      print("!!!!!!!! COULD NOT FIND FILE !!!!!!!!!!!!")
+      print(source)
+      sleep(2)
+   except Exception as e:
+      print(e)
+      raise e
