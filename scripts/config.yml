@@ -1,0 +1,55 @@
+Library Base Path: "~/Google Drive/Musik/Dancing"
+Target Path: "%added-year%/%mappedgenre%/%artist%/%artist% - %title%.%ext%"
+Degraded Limits:
+  # These are the lowest possible values for tracks.
+  # otherwise the track will be marked as degraded.
+  # Degraded Tracks will be placed in a special playlist for you
+  # so that you can get better versions of that track.
+  samplerate: 44100
+  bitrate: 192
+Filename Replacements:
+  dj: DJ
+  Dj: DJ
+  Feat: feat.
+  '&': and
+  "'": ''
+Genre To Folder:
+  # The key is the target folder or path, the array values are the
+  # genre prefixes that will be mapped to this path.
+  # we always use the shortest prefix mapping on a case normalized trimmed string (e.g. remove all spaces before and after)
+  # if you want a folder to contain all unmatched genres, set its key to "True"
+  Salsa/Generic:
+    - Salsa
+  Salsa/ChaCha:
+    - Salsa - ChaCha
+  Salsa/Linea:
+    - Salsa - Mambo
+    - Salsa - Jazz
+    - Salsa - Guaguanco
+  Salsa/Cubana:
+    - Salsa - Timba
+    - Salsa - Rumba
+    - Salsa - Cuban
+  Salsa/Other:
+    - Salsa -
+  Bachata/Generic:
+    - Bachata
+  Bachata/Dominicana:
+    - Bachata - Dom
+  Bachata/Sensual:
+    - Bachata - Sensual
+    - Bachata - Fusion Sensual
+    - Bachata - Darkroom
+  Kizomba and Zouk:
+    - Kizomba
+    - Zouk
+    - Kizomba / Zouk
+  Latin Pop:
+    - Merengue
+    - Reggaeton
+    - Reaggeton
+    - Reaggaeton
+    - Latin Pop
+  Latin Other:
+    - Latin Jazz
+  Other: true
