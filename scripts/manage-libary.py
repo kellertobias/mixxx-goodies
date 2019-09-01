@@ -544,6 +544,7 @@ def build_playlists(playlist):
 
 if config.get("Playlist Exports", False):
    create_playlists = config["Playlist Exports"].get('Autocreate Playlists', False)
+   print("Playlist Autocreate (Not implemented at the moment)")
    for playlist in create_playlists:
       build_playlists(playlist)
 
@@ -579,7 +580,7 @@ if config.get("Playlist Exports", False):
       export_playlists.append((name, "crate", playlist_entry))
 
    for (playlistName, playlistType, tracks) in export_playlists:
-      playlistFileName = "%s - %s.m3u" % (playlistName, playlistType)
+      playlistFileName = "%s - %s.m3u" % (playlistType, playlistName)
       print("Exporting: %s" % playlistFileName)
       with open(os.path.join(playlist_basedir, playlistFileName), "w") as m3u:
          m3u.write("#EXTM3U\n")
