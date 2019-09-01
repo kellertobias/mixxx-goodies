@@ -97,6 +97,8 @@ mapped_genre_prefixes.sort(reverse=True)
 
 def get_genre_mapping(genre):
    try:
+      if genre is None:
+         genre = "Unknown"
       genre_prefix = next(x for x in mapped_genre_prefixes if genre.startswith(x))
       return genre_mapping[genre_prefix]
    except StopIteration:
@@ -211,6 +213,49 @@ if len(not_mapped) > 0:
 
 print("       >>> Everything Fine. <<<")
 print("======================================")
+
+
+print("")
+print("Will now check for unlinked tracks and move them to a Dumpster Folder.")
+print("This may modify your filesystem.")
+
+cont = query_yes_no("List files, not in mixx library?")
+
+if cont:
+   detached_files = []
+   for subdir, dirs, files in os.walk(library_location):
+      for file in files:
+         filelocation = os.path.join(subdir, file)
+         trackFound = False
+         for track in conn.execute('''
+            SELECT 
+               id
+            FROM track_locations
+            WHERE location = ?
+         ''', (filelocation, )):
+            trackFound = True
+         
+         if not trackFound:
+            print("NO Track Found", filelocation, os.path.basename(file))
+            detached_files.append(filelocation)
+
+   dumpster_directory = os.path.expanduser(config["Dumpster Directory"])
+   now = datetime. now()
+
+   dumpster_template = os.path.join(dumpster_directory, "%s-{index}-{orig}" % now. strftime("%Y-%m-%d-%H-%M"))
+
+   print("Found %s detached files. Will move them to the dumpster-directory, prepended with the date and a acounter." % len(detached_files))
+   cont = query_yes_no("Move files, not in mixx library to new dumpster?")
+
+   if cont:
+      i = 0
+      for file in detached_files:
+         print("Moving %s" % file)
+         shutil.move(file, dumpster_template.format(
+            index=i,
+            orig=os.path.basename(file)
+         ))
+
 
 moved_tracks = []
 locations = {}
@@ -428,41 +473,117 @@ else:
    print(">>> Everything Fine. No Duplicates <<<")
    print("======================================")
 
-print("")
-print("Will now move %s tracks" % len(moved_tracks))
+if len(moved_tracks) > 0:
+   print("")
+   print("")
+   print("")
+   print("These files will be moved:")
+   print("")
 
-cont = query_yes_no("Do you want to continue? This may modify your filesystem and mixxx library.")
+   for (trackId, trackLocationId, source, target) in moved_tracks:
+      if source.startswith(library_location):
+         source = source[len(library_location):]
+      if target.startswith(library_location):
+         target = target[len(library_location):]
+      print(" > %s --> %s" % (source, target))
 
-if not cont:
-   print("Ok, Goodbye")
-   sys.exit(0)
+   print("Will now move %s tracks to their new location" % len(moved_tracks))
+   print("This may modify your filesystem and mixxx library.")
 
-for (trackId, trackLocationId, source, target) in moved_tracks:
-   directory = os.path.dirname(target)
-   filename = os.path.basename(target)
-   if not os.path.exists(directory):
-      print(" > Creating Directory %s" % directory)
-      os.makedirs(directory)
+   cont = query_yes_no("Move files to new location?")
+else:
+   print("No files to move")
 
-   try:
-      print((target, filename, directory, trackLocationId, source))
-      shutil.move(source, target)
-      cur = conn.cursor()
-      cur.execute("""
-         UPDATE track_locations
-         SET
-            location = ?,
-            filename = ?,
-            directory = ?
-         WHERE
-            id = ? AND
-            location = ?
-      """, (target, filename, directory, trackLocationId, source))
-      conn.commit()
-   except FileNotFoundError as e:
-      print("!!!!!!!! COULD NOT FIND FILE !!!!!!!!!!!!")
-      print(source)
-      sleep(2)
-   except Exception as e:
-      print(e)
-      raise e
+   cont = query_yes_no("Continue to next step?")
+   if not cont:
+      sys.exit(0)
+
+if cont:
+   for (trackId, trackLocationId, source, target) in moved_tracks:
+      directory = os.path.dirname(target)
+      filename = os.path.basename(target)
+      if not os.path.exists(directory):
+         print(" > Creating Directory %s" % directory)
+         os.makedirs(directory)
+
+      try:
+         print((target, filename, directory, trackLocationId, source))
+         shutil.move(source, target)
+         cur = conn.cursor()
+         cur.execute("""
+            UPDATE track_locations
+            SET
+               location = ?,
+               filename = ?,
+               directory = ?
+            WHERE
+               id = ? AND
+               location = ?
+         """, (target, filename, directory, trackLocationId, source))
+         conn.commit()
+      except FileNotFoundError as e:
+         print("!!!!!!!! COULD NOT FIND FILE !!!!!!!!!!!!")
+         print(source)
+         sleep(2)
+      except Exception as e:
+         print(e)
+         raise e
+
+print("======================================")
+print("Doing final cleanup (Removing empty folders)")
+
+# Iterate over the directory tree and check if directory is empty.
+for (dirpath, dirnames, filenames) in os.walk(library_location):
+    if len(dirnames) == 0 and len(filenames) == 0 :
+        shutil.rmtree(dirpath)
+
+def build_playlists(playlist):
+   print("Syncing Playlist %s" % playlist.get('name', "No Name"))
+
+
+
+if config.get("Playlist Exports", False):
+   create_playlists = config["Playlist Exports"].get('Autocreate Playlists', False)
+   for playlist in create_playlists:
+      build_playlists(playlist)
+
+   export_playlists = []
+   playlist_basedir = os.path.expanduser(config["Playlist Exports"].get('Base Directory', False))
+
+   common_prefix = os.path.commonpath([playlist_basedir, library_location])
+
+
+   for (crateId, name) in conn.execute('''
+      SELECT 
+         id,
+         name
+      FROM crates
+      WHERE show == 1
+   '''):
+      print("Playlist: %s" % name)
+      playlist_entry = []
+      for (trackId, location, title, artist, duration) in conn.execute('''
+         SELECT 
+            library.id as trackId,
+            track_locations.location as location,
+            library.title as title,
+            library.artist as artist,
+            library.duration as duration
+         FROM crate_tracks
+         LEFT JOIN library ON(crate_tracks.track_id = library.id)
+         LEFT JOIN track_locations ON(library.location = track_locations.id)
+         WHERE crate_tracks.crate_id == ?
+      ''', (crateId, )):
+         playlist_entry.append((title, artist, duration, location))
+
+      export_playlists.append((name, "crate", playlist_entry))
+
+   for (playlistName, playlistType, tracks) in export_playlists:
+      playlistFileName = "%s - %s.m3u" % (playlistName, playlistType)
+      print("Exporting: %s" % playlistFileName)
+      with open(os.path.join(playlist_basedir, playlistFileName), "w") as m3u:
+         m3u.write("#EXTM3U\n")
+
+         for (title, artist, duration, location) in tracks:
+            location = os.path.relpath(location, playlist_basedir)
+            m3u.write("#EXTINF:%s,%s - %s\n%s\n" % (int(duration), artist, title, location))

@@ -1,5 +1,6 @@
 Library Base Path: "~/Google Drive/Musik/Mixxx Library"
 Target Path: "%added-year%/%mappedgenre%/%artist%/%artist% - %title%.%ext%"
+Dumpster Directory: "~/Google Drive/Musik/Dumpster"
 Degraded Limits:
   # These are the lowest possible values for tracks.
   # otherwise the track will be marked as degraded.
@@ -24,26 +25,49 @@ Genre To Folder:
   # if you want a folder to contain all unmatched genres, set its key to "True"
   Salsa/Generic:
     - Salsa
-  Salsa/ChaCha:
+  Salsa/Cha Cha:
+    - Salsa - Cha Cha
     - Salsa - ChaCha
+    - Salsa- Cha Cha
+    - Salsa- ChaCha
+    - Cha Cha
+    - ChaCha
   Salsa/Linea:
     - Salsa - Mambo
     - Salsa - Jazz
     - Salsa - Guaguanco
+    - Salsa- Mambo
+    - Salsa- Jazz
+    - Salsa- Guaguanco
   Salsa/Cubana:
     - Salsa - Timba
     - Salsa - Rumba
     - Salsa - Cuban
+    - Salsa- Timba
+    - Salsa- Rumba
+    - Salsa- Cuban
+    - Timba
+  Salsa/Crossover:
+    - Salsa - Crossover
+    - Salsa - Cover
+    - Salsa- Crossover
+    - Salsa- Cover
+  Salsa/Romantica:
+    - Salsa - Romantica
   Salsa/Other:
     - Salsa -
   Bachata/Generic:
     - Bachata
   Bachata/Dominicana:
     - Bachata - Dom
+    - Bachata- Dom
   Bachata/Sensual:
     - Bachata - Sensual
     - Bachata - Fusion Sensual
     - Bachata - Darkroom
+    - Bachata- Sensual
+    - Bachata- Fusion Sensual
+    - Bachata- Darkroom
   Kizomba and Zouk:
     - Kizomba
     - Zouk
@@ -57,14 +81,32 @@ Genre To Folder:
   Latin Other:
     - Latin Jazz
   Other: true
-Playlists:
+
+Playlist Exports:
+  # The base directory is the directory that will be used as the current
+  # directory in the m3u exported playlists.
+  # also the m3u playlists will be stored in this directory.
+  Base Directory: "~/Google Drive/Musik/_playlists"
+  Autocreate Playlists:
   - name: "Unrated"
+    mixxx: yes
+    m3u: no
     rules:
       - key: rating
         operator: <
         value: 1
   - name: "Low Quality"
+    mixxx: yes
+    m3u: no
     rules:
       - key: bitrate
         operator: <
         value: 192
+  - name: "Bachata Sensual Favourites"
+    rules:
+      - key: rating
+        operator: <
+        value: 4
+      - key: genremap
+        operator: startswith
+        value: "Bachata/Sensual"
