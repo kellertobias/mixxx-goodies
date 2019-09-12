@@ -577,7 +577,7 @@ if config.get("Playlist Exports", False):
       ''', (crateId, )):
          playlist_entry.append((title, artist, duration, location))
 
-      export_playlists.append((name, "crate", playlist_entry))
+      export_playlists.append((name, "Crate", playlist_entry))
 
    for (playlistName, playlistType, tracks) in export_playlists:
       playlistFileName = "%s - %s.m3u" % (playlistType, playlistName)

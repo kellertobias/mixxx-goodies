@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# This Script Exports Playlists from rhythmbox
+# in the same directory as we have configured the mixxx playlists to be exported to.
+# this is helpful, if you want to copy the playlists to your phone.
+# 
+
 import os
 from xml.dom import minidom
 from xml.etree.ElementTree import tostring
