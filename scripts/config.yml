@@ -23,6 +23,8 @@ Genre To Folder:
   # genre prefixes that will be mapped to this path.
   # we always use the shortest prefix mapping on a case normalized trimmed string (e.g. remove all spaces before and after)
   # if you want a folder to contain all unmatched genres, set its key to "True"
+  Mixes:
+    - Mix
   Salsa/Generic:
     - Salsa
   Salsa/Cha Cha:

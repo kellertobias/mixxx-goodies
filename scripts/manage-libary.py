@@ -561,7 +561,7 @@ if config.get("Playlist Exports", False):
       FROM crates
       WHERE show == 1
    '''):
-      print("Playlist: %s" % name)
+      print("Crate: %s" % name)
       playlist_entry = []
       for (trackId, location, title, artist, duration) in conn.execute('''
          SELECT 
@@ -578,6 +578,33 @@ if config.get("Playlist Exports", False):
          playlist_entry.append((title, artist, duration, location))
 
       export_playlists.append((name, "Crate", playlist_entry))
+
+
+   for (playlistId, name, hiddenType) in conn.execute('''
+      SELECT 
+         id,
+         name,
+         hidden
+      FROM Playlists
+      WHERE hidden == 0 or (hidden == 2 and locked == 1)
+   '''):
+      print("Playlist: %s" % name)
+      playlist_entry = []
+      for (trackId, location, title, artist, duration) in conn.execute('''
+         SELECT 
+            library.id as trackId,
+            track_locations.location as location,
+            library.title as title,
+            library.artist as artist,
+            library.duration as duration
+         FROM PlaylistTracks
+         LEFT JOIN library ON(PlaylistTracks.track_id = library.id)
+         LEFT JOIN track_locations ON(library.location = track_locations.id)
+         WHERE PlaylistTracks.playlist_id == ?
+      ''', (playlistId, )):
+         playlist_entry.append((title, artist, duration, location))
+
+      export_playlists.append((name, "Playlist", playlist_entry))
 
    for (playlistName, playlistType, tracks) in export_playlists:
       playlistFileName = "%s - %s.m3u" % (playlistType, playlistName)
