@@ -604,7 +604,10 @@ if config.get("Playlist Exports", False):
       ''', (playlistId, )):
          playlist_entry.append((title, artist, duration, location))
 
-      export_playlists.append((name, "Playlist", playlist_entry))
+      if hiddenType == 2:
+         export_playlists.append((name, "History", playlist_entry))
+      else:
+         export_playlists.append((name, "Playlist", playlist_entry))
 
    for (playlistName, playlistType, tracks) in export_playlists:
       playlistFileName = "%s - %s.m3u" % (playlistType, playlistName)
