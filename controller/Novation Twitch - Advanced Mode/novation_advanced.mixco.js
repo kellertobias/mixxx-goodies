@@ -71,8 +71,8 @@ var amberLed = 0x40
 var greenLed = 0x70
 
 var loopSizes = [
-    "0.125", "0.25", "0.5", "1",
-    "2", "4", "8", "16"
+    "0.125", "0.5", "1", "2",
+    "4", "8", "16", "32"
 ]
 
 
@@ -84,7 +84,7 @@ mixco.script.register(module, {
     // to the user in the MIDI mapping chooser of Mixxx.
 
     info: {
-        name: "Novation Twitch Advanced Scripted",
+        name: "Novation >twitch< Advanced Scripted v1.9",
         author: "Tobias S. Keller",
         forums: 'https://github.com/arximboldi/mixco/issues',
         wiki: 'https://sinusoid.es/mixco/script/korg_nanokontrol2.mixco.html',
@@ -195,7 +195,10 @@ mixco.script.register(module, {
         t.mappings["maximize_library"] = t.binaryT
         t.mappings["LoadSelectedTrackAndPlay"] = t.momentaryT
         t.mappings["skip_next"] = t.momentaryT
+        t.mappings["back"] = t.momentaryT
         t.mappings["fade_now"] = t.momentaryT
+        t.mappings["cue_set"] = t.momentaryT
+        t.mappings["cue_gotoandplay"] = t.momentaryT
 
         for (var j = 0; j < 8; j++) {
             t.mappings["beatloop_" + loopSizes[j] + "_activate"] = t.momentaryT
@@ -210,7 +213,9 @@ mixco.script.register(module, {
 
         var shiftEnabled = b.modifier()
         CTRL.DECK_2.SHIFT.does(shiftEnabled)
-        CTRL.DECK_1.SHIFT.does("[Recording]", "toggle_recording", "[Recording]", "status")
+        CTRL.DECK_1.SHIFT.does(shiftEnabled)
+
+        // CTRL.DECK_1.SHIFT.does("[Recording]", "toggle_recording", "[Recording]", "status")
 
         // #### Master section
         //
@@ -222,9 +227,49 @@ mixco.script.register(module, {
         // // * *Crossfader* slider.
         CTRL.MASTER.CROSSFADE.does("[Master]", "crossfader")
 
-        // CTRL.BROWSE.ENLARGE.does("[Library]", "AutoDjAddBottom")
-        // CTRL.BROWSE.PREVIEW.does("[PreviewDeck1]", "LoadSelectedTrackAndPlay")
+       // ### Display
+        CTRL.FX.TOP_RR_ROT.does(b.map("[Channel1]", "waveform_zoom").transform(t.linearT(10,0, 1.0)))
+        
+        // ### AutoDJ
+        CTRL.FX.MID_RR.does("[AutoDJ]", "enabled", "[AutoDJ]", "enabled")
+        CTRL.FX.BOT_RR.when(shiftEnabled, "[AutoDJ]", "skip_next")
+            ._else("[AutoDJ]", "fade_now")
 
+
+        this.addBrowser(shiftEnabled)
+        this.addPreview(shiftEnabled)
+        this.addEffectUnit(shiftEnabled)
+
+        // ### Per deck controls
+        this.decks = b.chooser()
+        this.addDeck(0, shiftEnabled)
+        this.addDeck(1, shiftEnabled)
+
+    },
+
+    addEffectUnit: function(shiftEnabled) {
+                // ### FX Controls
+        
+        var fxChain = "EffectRack1_EffectUnit1"
+        var fxShift = b.modifier()
+        CTRL.FX["TOP_MR_PUSH"].does(fxShift)
+
+        // @TODO: Find out correct transformation function
+        CTRL.FX["TOP_MR_ROT"].option(scaledDiff(1 / 2))
+            .when (fxShift,
+                b.map("[" + fxChain + "]", "mix").transform(t.linearT(0.0,10.0))
+            )
+            .else_(
+                b.map("[" + fxChain + "_Effect1]", "meta").transform(t.linearT(0.0,10.0))
+            )
+
+        CTRL.FX["MID_ML"]
+            .does("[EffectRack1_EffectUnit1]", "group_[Channel1]_enable")
+        CTRL.FX['BOT_MR']
+            .does("[EffectRack1_EffectUnit1]", "group_[Channel2]_enable")
+    },
+
+    addBrowser: function(shiftEnabled) {
         CTRL.BROWSE.ENLARGE.when(shiftEnabled, "[Library]", "AutoDjAddTop")
             ._else("[Library]", "AutoDjAddBottom")
 
@@ -251,49 +296,21 @@ mixco.script.register(module, {
           .else_(b.map("[Playlist]", "SelectTrackKnob")
                .options.selectknob)
         
-        // ### Preview Deck Control
-        CTRL.FX.TOP_LL_ROT.does("[PreviewDeck1]", "pregain")
-        CTRL.FX.MID_LL.does("[PreviewDeck1]", "play", "[PreviewDeck1]", "beat_active")
-        CTRL.FX.BOT_LL.does("[PreviewDeck1]", "cue_preview")
-
-        // ### Display
-        CTRL.FX.TOP_RR_ROT.does(b.map("[Channel1]", "waveform_zoom").transform(t.linearT(10,0, 1.0)))
-        
-        // ### AutoDJ
-        CTRL.FX.MID_RR.does("[AutoDJ]", "enabled", "[AutoDJ]", "enabled")
-        CTRL.FX.BOT_RR.when(shiftEnabled, "[AutoDJ]", "skip_next")
-            ._else("[AutoDJ]", "fade_now")
-
-        // ### FX Controls
-        _.map(["ML", "MR"], function(key, i) {
-            var fxChain = "EffectRack1_EffectUnit" + (i + 1) + ""
-            var fxShift = b.modifier()
-            CTRL.FX["TOP_" + key + "_PUSH"].does(fxShift)
-
-            // @TODO: Find out correct transformation function
-            CTRL.FX["TOP_" + key + "_ROT"].option(scaledDiff(1 / 2))
-                .when (fxShift,
-                    b.map("[" + fxChain + "]", "mix").transform(t.linearT(0.0,10.0))
-                )
-                .else_(
-                    b.map("[" + fxChain + "_Effect1]", "meta").transform(t.linearT(0.0,10.0))
-                )
-        })
-        _.map(["MID", "BOT"], function(key, i) {
-            CTRL.FX[key + '_ML']
-                .does("[EffectRack1_EffectUnit" + (i + 1) + "]", "group_[Channel1]_enable")
-            CTRL.FX[key + '_MR']
-                .does("[EffectRack1_EffectUnit" + (i + 1) + "]", "group_[Channel2]_enable")
-        })
-
-        // ### Per deck controls
-        this.decks = b.chooser()
-        this.addDeck(0)
-        this.addDeck(1)
-
     },
 
-    addDeck: function(i) {
+    addPreview: function(shiftEnabled) {
+        // ### Preview Deck Control
+        CTRL.FX.TOP_LL_ROT.does("[PreviewDeck1]", "pregain")
+        CTRL.FX.MID_LL.does("[PreviewDeck1]", "cue_preview")
+        CTRL.FX.MID_ML.does("[PreviewDeck1]", "play", "[PreviewDeck1]", "beat_active")
+
+        CTRL.FX.BOT_LL.does("[PreviewDeck1]", "back")
+        CTRL.FX.BOT_ML.does("[PreviewDeck1]", "cue_preview")
+
+        CTRL.FX["TOP_ML_ROT"].option(b.playhead("[PreviewDeck1]"))
+    },
+
+    addDeck: function(i, shiftEnabled) {
         var self = this
         var g = "[Channel" + (i + 1) + "]"
         var DECK = CTRL['DECK_' + (i + 1)];
@@ -301,11 +318,13 @@ mixco.script.register(module, {
         //
         DECK.PFL.does(this.decks.add(g, "pfl"))
 
-        DECK.BTN_1.does(g, "quantize")
-        DECK.BTN_2.does(g, "keylock")
+        // DECK.BTN_3.does(g, "bpm_tap", g, "beat_active")
+
+        DECK.BTN_1.does(g, "beats_translate_curpos")
+        DECK.BTN_2.does(g, "quantize")
         // DECK.BTN_2.does(g, "sync_enabled")
-        DECK.BTN_3.does(g, "bpm_tap", g, "beat_active")
-        DECK.BTN_4.does(g, 'beats_translate_curpos')
+        DECK.BTN_3.does(g, "keylock", g, "keylock")
+        DECK.BTN_4.does(g, "sync_enabled", g, "beat_active")
 
         DECK.FADE.does(g, "volume")
         DECK.EQ_L.does(g, "filterLow")
@@ -324,19 +343,14 @@ mixco.script.register(module, {
 
 
         DECK.PLAY.does(g, "play")
-        DECK.CUE.does(g, "cue_default", g, "cue_indicator")
+        DECK.CUE.when(shiftEnabled, g, "cue_set", g, "cue_indicator")
+            ._else(g, "cue_gotoandplay", g, "cue_indicator")
         
         // slipMode = b.switch_()
         // LEFT BTN: Scratch
         // RIGHT BTN: Search
         // SHOW REMAINING TIME ON TOUCHSTRIP + BLINKING
         // EXAMPLE: c.control(noteIdShift(0x12)).does(slipMode)
-
-        // padTab = b.chooser()
-        // DECK.MODE_LL.does(padTab.add())
-        // DECK.MODE_ML.does(padTab.add())
-        // DECK.MODE_MR.does(padTab.add())
-        // DECK.MODE_RR.does(padTab.add())
 
 
         // ===================================================
@@ -431,6 +445,7 @@ mixco.script.register(module, {
                 g, "hotcue_" + (j + 1) + "_activate",
                 g, "hotcue_" + (j + 1) + "_enabled"
             )
+            //g, "hotcue_" + (j + 1) + "_activate", == on shift ???
         }
 
         for (var j = 0; j < 8; j++) {
@@ -459,7 +474,7 @@ mixco.script.register(module, {
         DECK['PAD_5'].when(performanceModeValues[1], b.spinback(i + 1))
         DECK['PAD_6'].when(performanceModeValues[1], b.brake(i + 1))
         DECK['PAD_7'].when(performanceModeValues[1], b.stutter(g, 1 / 8))
-        DECK['PAD_8'].when(performanceModeValues[1], b.stutter(g, 1 / 4))
+        DECK['PAD_8'].when(performanceModeValues[1], g, 'bpm_tap', g, "beat_active")
     },
 
     // ### Initialization
